@@ -1,0 +1,16 @@
+# Python
+backend/**/__pycache__
+backend/**/*.pyc
+backend/**/*.pyo
+backend/**/.pytest_cache
+backend/**/*.egg-info
+
+# Node
+frontend/node_modules
+frontend/dist
+
+# Dev artifacts
+.git
+.env
+docker-compose.yml
+*.md

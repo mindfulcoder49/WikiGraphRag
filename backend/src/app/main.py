@@ -4,9 +4,11 @@ FastAPI application: all routes + WebSocket endpoint.
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from app.build import service as svc
 from app.build.events import manager as ws_manager
@@ -230,7 +232,8 @@ async def ask(build_id: str, req: QuestionRequest):
     build = await svc.get_build(driver, build_id)
     if build is None:
         raise HTTPException(status_code=404, detail="Build not found")
-    return await answer_question(driver, build_id, req.question)
+    history = [m.model_dump() for m in req.history] if req.history else None
+    return await answer_question(driver, build_id, req.question, history=history)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -250,3 +253,20 @@ async def websocket_endpoint(websocket: WebSocket, build_id: str):
         pass
     finally:
         ws_manager.disconnect(build_id, websocket)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SPA static file serving (production / Fly.io)
+# The frontend is built into /app/static/ by the multi-stage Dockerfile.
+# This catch-all must come LAST so all API routes above take precedence.
+# ──────────────────────────────────────────────────────────────────────────────
+
+_STATIC_DIR = Path(__file__).parent.parent.parent / "static"
+
+if _STATIC_DIR.is_dir():
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        candidate = _STATIC_DIR / full_path
+        if candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(_STATIC_DIR / "index.html")

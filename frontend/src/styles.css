@@ -318,6 +318,7 @@ input[type="text"], input[type="range"] {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 /* Build log */
@@ -718,6 +719,150 @@ input[type="text"], input[type="range"] {
 }
 
 .modal-chunk-id { font-size: 10px; color: var(--text2); font-family: monospace; }
+
+/* ── Node Sidebar ──────────────────────────────────────────────────── */
+.node-sidebar {
+  position: absolute;
+  top: 48px; /* below the legend bar */
+  left: 12px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  pointer-events: none;
+}
+
+.node-sidebar-toggle {
+  pointer-events: all;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text2);
+  padding: 5px 10px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: border-color 0.15s, color 0.15s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.node-sidebar-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.node-sidebar--open .node-sidebar-toggle {
+  border-color: var(--accent2);
+  color: var(--accent);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom: none;
+}
+
+.node-sidebar-count {
+  background: var(--accent2);
+  color: #fff;
+  border-radius: 10px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.node-sidebar-panel {
+  pointer-events: all;
+  width: 240px;
+  background: var(--bg2);
+  border: 1px solid var(--accent2);
+  border-top: none;
+  border-radius: 0 var(--radius) var(--radius) var(--radius);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  max-height: 60vh;
+}
+
+.node-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 6px;
+  flex-shrink: 0;
+}
+
+.node-sidebar-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text2);
+}
+
+.node-sidebar-total {
+  font-size: 11px;
+  color: var(--text2);
+}
+
+.node-sidebar-search {
+  margin: 0 8px 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 6px 10px;
+  font-size: 13px;
+  outline: none;
+  flex-shrink: 0;
+}
+.node-sidebar-search:focus { border-color: var(--accent2); }
+
+.node-sidebar-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 4px 6px;
+}
+
+.node-sidebar-empty {
+  color: var(--text2);
+  font-size: 12px;
+  padding: 8px;
+  text-align: center;
+}
+
+.node-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-size: 12px;
+  transition: background 0.1s;
+}
+.node-sidebar-item:hover { background: var(--bg3); }
+
+.node-sidebar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.node-sidebar-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-sidebar-type {
+  font-size: 10px;
+  color: var(--text2);
+  flex-shrink: 0;
+}
 
 /* ── Scrollbar styling ─────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }

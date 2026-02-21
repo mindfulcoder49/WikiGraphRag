@@ -14,6 +14,7 @@ import BuildLog from '../components/BuildLog'
 import ProgressBar from '../components/ProgressBar'
 import GraphView from '../components/GraphView'
 import NodeDrawer from '../components/NodeDrawer'
+import NodeSidebar from '../components/NodeSidebar'
 import Chat from '../components/Chat'
 
 export default function Build() {
@@ -200,13 +201,14 @@ export default function Build() {
           <BuildLog logs={logs} />
         </div>
 
-        {/* Right: graph */}
+        {/* Right: graph + node sidebar */}
         <div className="build-right">
           <GraphView
             nodes={nodes}
             edges={edges}
             onNodeClick={handleNodeClick}
           />
+          <NodeSidebar nodes={nodes} onNodeClick={handleNodeClick} />
         </div>
       </div>
 

@@ -19,7 +19,8 @@ Output ONLY valid JSON:
 Selection rules (apply strictly):
 - Choose at most the number of titles specified by MAX_LINKS.
 - PREFER: key people, organisations, events, places, concepts, or works that are
-  directly and substantially related to the build topic.
+  directly and substantially related to the build topic — i.e. pages whose entire
+  subject matter is relevant, not pages that merely share a word with the topic.
 - AVOID:
     * Pure list pages ("List of …", "Index of …")
     * Disambiguation pages ("… (disambiguation)")
@@ -27,6 +28,16 @@ Selection rules (apply strictly):
     * US Census / national census pages unless the topic is demography/statistics
     * Template or category pages
     * Pages about generic concepts that would apply to any topic (e.g. "English language")
+    * SIBLING / NAVBOX pages — pages that appear in the same Wikipedia navigation
+      template or category as the current page but aren't substantively about the
+      build topic. Example: if the build topic is "Quantum computing", the pages
+      "1-bit computing", "4-bit computing", "16-bit computing" etc. are about
+      classical processor word-size architectures and should be skipped even though
+      they contain the word "computing".
+    * Pages whose only connection to the build topic is sharing a single generic
+      keyword. Ask: "Would someone researching BUILD_TOPIC specifically want to
+      read this page?" If the answer is only "maybe, because it shares a word",
+      skip it.
 - If fewer than MAX_LINKS candidates are relevant, return only the relevant ones.
 - Always select at least 1 candidate unless the list is truly empty.
 """
@@ -63,7 +74,7 @@ Output ONLY valid JSON matching this exact schema:
       "name": "string – canonical entity name as it appears in the text",
       "type": "Person|Organization|Place|Work|Concept|Event|Institution|Other",
       "aliases": ["alternative names or abbreviations"],
-      "short_description": "one sentence description"
+      "summary": "3-5 sentence description covering: what this entity is, what it does or is known for, and why it is significant. Write enough that someone could understand this entity without reading the source text."
     }
   ],
   "claims": [
@@ -84,10 +95,22 @@ Rules:
 - object_name and object_text are mutually exclusive: set one, leave the other null.
 - confidence: 0.9 for explicit statements, 0.7 for inferred, 0.5 for uncertain.
 - Do not include claims you cannot support with the provided text.
+- ROOT ENTITY RULE: The Wikipedia page title is the root entity for this extraction. \
+  For every entity you extract, you MUST include at least one claim that directly \
+  connects it to the page title entity. This prevents disconnected subgraphs. \
+  Use a semantically accurate predicate — never invent facts, but do use the text to \
+  infer the relationship. Examples for a page titled "Quantum computing": \
+  "Quantum computer" → "is a type of" → "Quantum computing"; \
+  "Peter Shor" → "developed algorithms for" → "Quantum computing"; \
+  "Qubit" → "is the basic unit of" → "Quantum computing".
 """
 
 
-def extraction_user(page_title: str, chunks: list[dict]) -> str:
+def extraction_user(
+    page_title: str,
+    chunks: list[dict],
+    parent_page_title: str | None = None,
+) -> str:
     """Build the user message for extraction."""
     chunk_lines = []
     for c in chunks:
@@ -95,10 +118,23 @@ def extraction_user(page_title: str, chunks: list[dict]) -> str:
             f"[{c['id']}] (Section: {c['section']})\n{c['text']}"
         )
     chunks_text = "\n\n".join(chunk_lines)
+
+    parent_note = ""
+    if parent_page_title:
+        parent_note = (
+            f" Additionally, this page was navigated to from \"{parent_page_title}\". "
+            f"You MUST include a claim connecting \"{page_title}\" directly to "
+            f"\"{parent_page_title}\" using a semantically accurate predicate "
+            f"(e.g. \"is a subtype of\", \"is a form of\", \"is related to\", "
+            f"\"is a component of\"). Do not use \"linked from\" — infer the real relationship."
+        )
+
     return (
-        f"Wikipedia page: {page_title}\n\n"
+        f"Wikipedia page (ROOT ENTITY): {page_title}\n\n"
         f"=== TEXT CHUNKS ===\n{chunks_text}\n\n"
-        "Extract all entities and claims from the above chunks."
+        f"Extract all entities and claims from the above chunks. "
+        f"Every extracted entity must have at least one claim connecting it to \"{page_title}\"."
+        f"{parent_note}"
     )
 
 
@@ -172,7 +208,11 @@ Rules:
 """
 
 
-def answer_user(question: str, facts: list[dict]) -> str:
+def answer_user(
+    question: str,
+    facts: list[dict],
+    history: list[dict] | None = None,
+) -> str:
     facts_lines = []
     for f in facts:
         cites = ", ".join(
@@ -184,7 +224,13 @@ def answer_user(question: str, facts: list[dict]) -> str:
             f"(conf={f.get('confidence', '?')}) [{cites}]"
         )
     facts_text = "\n".join(facts_lines) if facts_lines else "(no facts retrieved)"
-    return f"Question: {question}\n\nProvided facts:\n{facts_text}"
+
+    history_block = ""
+    if history:
+        lines = "\n".join(f"{m['role'].capitalize()}: {m['content']}" for m in history)
+        history_block = f"Prior conversation:\n{lines}\n\n"
+
+    return f"{history_block}Question: {question}\n\nProvided facts:\n{facts_text}"
 
 
 # ──────────────────────────────────────────────────────────────────────────────

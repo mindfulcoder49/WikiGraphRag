@@ -1,7 +1,13 @@
 import type { AnswerResponse, BuildInfo, EntityDetail, LogEntry } from './types'
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000'
-const WS_BASE = (import.meta.env.VITE_WS_URL as string | undefined) ?? 'ws://localhost:8000'
+// In local dev the docker-compose sets VITE_API_URL / VITE_WS_URL so the
+// browser can reach the backend on a different port.  In production (Fly.io)
+// those vars are not set at build time, so we fall back to same-origin URLs
+// which work because the backend serves the frontend bundle itself.
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+const WS_BASE =
+  (import.meta.env.VITE_WS_URL as string | undefined) ??
+  `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -55,10 +61,14 @@ export async function getEntity(buildId: string, entityId: string): Promise<Enti
   return apiFetch(`/api/builds/${buildId}/entity/${entityId}`)
 }
 
-export async function askQuestion(buildId: string, question: string): Promise<AnswerResponse> {
+export async function askQuestion(
+  buildId: string,
+  question: string,
+  history: Array<{ role: 'user' | 'assistant'; content: string }> = [],
+): Promise<AnswerResponse> {
   return apiFetch(`/api/builds/${buildId}/ask`, {
     method: 'POST',
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, history }),
   })
 }
 

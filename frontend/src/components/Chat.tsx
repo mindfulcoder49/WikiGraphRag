@@ -28,9 +28,17 @@ export default function Chat({ buildId }: Props) {
     if (!q || loading) return
     setInput('')
     setLoading(true)
+
+    // Snapshot current messages before adding the new user turn so we can
+    // build the history to send (prior exchanges only, not the current question).
+    const history = messages.map((m) => ({
+      role: m.role,
+      content: m.text,
+    }))
+
     setMessages((prev) => [...prev, { role: 'user', text: q }])
     try {
-      const answer = await askQuestion(buildId, q)
+      const answer = await askQuestion(buildId, q, history)
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', text: answer.answer_text, answer },

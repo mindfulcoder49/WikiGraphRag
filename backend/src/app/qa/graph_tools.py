@@ -97,17 +97,17 @@ async def explore_entities(
         entity_tool_out, entity_raw_facts = await get_entity_facts(driver, entity["id"])
         all_raw_facts.extend(entity_raw_facts)
 
-        # If the entity has no extracted claims but does have a description,
-        # include the description as a low-confidence synthetic fact so the
-        # synthesizer has something to work with.
-        if not entity_raw_facts and entity.get("description"):
+        # Always include the entity summary as a raw fact so the answer
+        # synthesizer has a description to draw from even when specific claims
+        # are sparse. Placed after claims so claims take precedence.
+        if entity.get("description"):
             all_raw_facts.append(
                 {
                     "subject": entity["name"],
-                    "predicate": "described as",
+                    "predicate": "summary",
                     "object_entity": None,
                     "object_text": entity["description"],
-                    "confidence": 0.5,
+                    "confidence": 0.7,
                     "claim_id": f"desc_{entity['id']}",
                     "citations": [],
                 }
@@ -153,7 +153,7 @@ async def search_entities(driver: AsyncDriver, query: str) -> list[dict]:
                 "id": rec["id"],
                 "name": rec["name"],
                 "type": rec["type"],
-                "description": rec["description"][:150] if rec["description"] else "",
+                "description": rec["description"][:800] if rec["description"] else "",
             })
     return rows
 

@@ -26,13 +26,20 @@ logger = logging.getLogger(__name__)
 
 
 async def answer_question(
-    driver: AsyncDriver, build_id: str, question: str
+    driver: AsyncDriver,
+    build_id: str,
+    question: str,
+    history: list[dict] | None = None,
 ) -> AnswerResponse:
     """
     Entry point for agentic Graph RAG Q&A.
 
     1. Run an agent loop: LLM calls graph tools to explore and collect facts.
     2. Pass the collected facts to synthesize_answer for a grounded response.
+
+    *history* is a list of prior {"role": "user"|"assistant", "content": str}
+    dicts that are prepended as context so the agent can resolve references
+    like "it" or "they" from earlier in the conversation.
     """
     collected_facts: list[dict] = []
 
@@ -70,13 +77,26 @@ async def answer_question(
 
         return json.dumps({"error": f"Unknown tool: {name}"})
 
+    # Build the initial agent message, prepending conversation history so the
+    # agent can resolve references (e.g. "it", "they") from prior turns.
+    if history:
+        history_lines = "\n".join(
+            f"{m['role'].capitalize()}: {m['content']}" for m in history
+        )
+        initial_message = (
+            f"Prior conversation:\n{history_lines}\n\n"
+            f"Current question: {question}"
+        )
+    else:
+        initial_message = question
+
     await run_agent_loop(
         system_prompt=AGENT_SYSTEM,
-        initial_message=question,
+        initial_message=initial_message,
         tools=TOOL_SCHEMAS,
         tool_executor=execute_tool,
         max_turns=12,
     )
 
     logger.info("Agent finished. Total facts collected: %d", len(collected_facts))
-    return await synthesize_answer(question, collected_facts)
+    return await synthesize_answer(question, collected_facts, history=history)

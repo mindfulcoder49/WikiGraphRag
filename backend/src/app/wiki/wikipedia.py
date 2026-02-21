@@ -85,28 +85,113 @@ async def fetch_page_content(title: str) -> str:
 
 async def fetch_page_links(title: str, limit: int = 60) -> list[str]:
     """
-    Fetch internal Wikipedia links (main namespace only) from *title*.
-    Returns a list of page titles.
+    Extract internal Wikipedia links from the article BODY only.
+
+    Strategy:
+    1. Fetch raw wikitext via the revisions API.
+    2. Truncate at terminal sections (See also, References, etc.) so navbox
+       links at the bottom of articles are never seen.
+    3. Strip all {{template}} blocks (removes navboxes, infoboxes, sidebars).
+    4. Extract [[wikilinks]] from the remaining body text, tracking which
+       section each link appears in.
+    5. Return subsection links first (more topically specific), then intro
+       links, deduped and capped at *limit*.
     """
+    import re
+
+    # Sections after which no useful links appear
+    _TERMINAL = re.compile(
+        r'\n={1,6}\s*(?:See also|Notes|References|Sources|'
+        r'Further reading|External links|Bibliography|Footnotes)'
+        r'\s*={1,6}',
+        re.IGNORECASE,
+    )
+    # Wikilink: [[Target]] or [[Target|Display]] — skip File/Category/etc.
+    _LINK = re.compile(r'\[\[([^|\]#\n][^|\]\n]*?)(?:\|[^\]\n]*)?\]\]')
+    # Section headings
+    _SECTION = re.compile(r'^(={2,6})\s*(.+?)\s*\1\s*$', re.MULTILINE)
+
+    def _strip_templates(text: str) -> str:
+        """Remove all {{ }} template blocks, handling arbitrary nesting."""
+        out: list[str] = []
+        depth = 0
+        i = 0
+        while i < len(text):
+            if text[i:i+2] == '{{':
+                depth += 1
+                i += 2
+            elif text[i:i+2] == '}}':
+                if depth:
+                    depth -= 1
+                i += 2
+            elif depth == 0:
+                out.append(text[i])
+                i += 1
+            else:
+                i += 1
+        return ''.join(out)
+
     def _fetch():
-        titles: list[str] = []
-        params = {
+        data = _api_get({
             "action": "query",
-            "prop": "links",
+            "prop": "revisions",
             "titles": title,
-            "pllimit": min(limit, 500),
-            "plnamespace": 0,
-        }
-        while True:
-            data = _api_get(params)
-            pages = data.get("query", {}).get("pages", {})
-            for page in pages.values():
-                for link in page.get("links", []):
-                    titles.append(link["title"])
-            cont = data.get("continue")
-            if not cont or len(titles) >= limit:
-                break
-            params.update(cont)
-        return titles[:limit]
+            "rvprop": "content",
+            "rvslots": "main",
+            "rvlimit": 1,
+        })
+        wikitext = ""
+        for page in data.get("query", {}).get("pages", {}).values():
+            revs = page.get("revisions", [])
+            if revs:
+                wikitext = revs[0].get("slots", {}).get("main", {}).get("*", "")
+            break
+
+        if not wikitext:
+            return []
+
+        # 1. Cut off at terminal sections
+        m = _TERMINAL.search(wikitext)
+        if m:
+            wikitext = wikitext[:m.start()]
+
+        # 2. Strip templates (navboxes, infoboxes, sidebars)
+        wikitext = _strip_templates(wikitext)
+
+        # 3. Remove <ref> tags
+        wikitext = re.sub(r'<ref[^>]*>.*?</ref>', '', wikitext, flags=re.DOTALL)
+        wikitext = re.sub(r'<ref[^/]*/>', '', wikitext)
+
+        # 4. Split into intro + named sections
+        sections: list[tuple[str, str]] = []
+        last_pos = 0
+        last_name = "__intro__"
+        for sm in _SECTION.finditer(wikitext):
+            sections.append((last_name, wikitext[last_pos:sm.start()]))
+            last_name = sm.group(2).strip()
+            last_pos = sm.end()
+        sections.append((last_name, wikitext[last_pos:]))
+
+        # 5. Extract links, subsection links first
+        seen: set[str] = set()
+        intro_links: list[str] = []
+        body_links: list[str] = []
+
+        for section_name, section_text in sections:
+            for lm in _LINK.finditer(section_text):
+                target = lm.group(1).strip()
+                if ':' in target:          # skip File:, Category:, etc.
+                    continue
+                key = target.lower()
+                if not target or key in seen:
+                    continue
+                seen.add(key)
+                if section_name == "__intro__":
+                    intro_links.append(target)
+                else:
+                    body_links.append(target)
+
+        # Subsection links are more topically specific — surface them first
+        return (body_links + intro_links)[:limit]
 
     return await asyncio.get_event_loop().run_in_executor(None, _fetch)

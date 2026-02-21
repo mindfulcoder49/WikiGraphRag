@@ -13,12 +13,16 @@ logger = logging.getLogger(__name__)
 _SCHEMA_HINT = '{"answer_text":"","used_chunk_ids":[],"suggest_expand":false,"followup_pages":[]}'
 
 
-async def synthesize_answer(question: str, facts: list[dict]) -> AnswerResponse:
+async def synthesize_answer(
+    question: str,
+    facts: list[dict],
+    history: list[dict] | None = None,
+) -> AnswerResponse:
     """
     Call the LLM to synthesize a grounded answer from *facts*.
     Returns an AnswerResponse with citations mapped from the used chunk IDs.
     """
-    user_msg = answer_user(question, facts)
+    user_msg = answer_user(question, facts, history=history)
     logger.info("Answer LLM user message (first 500 chars): %s", user_msg[:500])
     raw = await llm_call(
         system_prompt=ANSWER_SYSTEM,
