@@ -28,7 +28,7 @@ Selection rules (apply strictly):
     * Template or category pages
     * Pages about generic concepts that would apply to any topic (e.g. "English language")
 - If fewer than MAX_LINKS candidates are relevant, return only the relevant ones.
-- If none are relevant, return {"selected": []}.
+- Always select at least 1 candidate unless the list is truly empty.
 """
 
 

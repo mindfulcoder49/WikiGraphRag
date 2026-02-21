@@ -50,6 +50,13 @@ app.add_middleware(
 # Build endpoints
 # ──────────────────────────────────────────────────────────────────────────────
 
+@app.get("/api/builds")
+async def list_builds():
+    driver = await get_driver()
+    builds = await svc.list_builds(driver)
+    return {"builds": builds}
+
+
 @app.post("/api/builds", response_model=BuildResponse, status_code=201)
 async def create_build(req: BuildRequest):
     build_id = svc.make_build_id()

@@ -200,14 +200,10 @@ export default function Build() {
           <BuildLog logs={logs} />
         </div>
 
-        {/* Right: graph — only show nodes that have at least one edge */}
+        {/* Right: graph */}
         <div className="build-right">
           <GraphView
-            nodes={(() => {
-              if (edges.length === 0) return nodes
-              const connected = new Set(edges.flatMap(e => [e.source, e.target]))
-              return nodes.filter(n => connected.has(n.id))
-            })()}
+            nodes={nodes}
             edges={edges}
             onNodeClick={handleNodeClick}
           />
@@ -222,8 +218,8 @@ export default function Build() {
         />
       )}
 
-      {/* Chat (after done) */}
-      {(status === 'DONE') && buildId && (
+      {/* Chat (after done or stopped) */}
+      {(status === 'DONE' || status === 'STOPPED') && buildId && (
         <div className="chat-section">
           <Chat buildId={buildId} />
         </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ForceGraph3D from 'react-force-graph-3d'
 import SpriteText from 'three-spritetext'
 import type { GraphEdge, GraphNode } from '../types'
@@ -14,13 +14,6 @@ const TYPE_COLORS: Record<string, string> = {
   Other: '#757575',
 }
 
-interface FGNode {
-  id: string
-  label: string
-  type: string
-  color: string
-}
-
 interface Props {
   nodes: GraphNode[]
   edges: GraphEdge[]
@@ -31,10 +24,6 @@ export default function GraphView({ nodes, edges, onNodeClick }: Props) {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [dims, setDims] = useState({ width: 800, height: 600 })
   const [showLabels, setShowLabels] = useState(true)
-
-  const gDataRef = useRef<{ nodes: FGNode[]; links: object[] }>({ nodes: [], links: [] })
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [graphData, setGraphData] = useState<{ nodes: any[]; links: any[] }>({ nodes: [], links: [] })
 
   // Track container size
   useEffect(() => {
@@ -48,48 +37,67 @@ export default function GraphView({ nodes, edges, onNodeClick }: Props) {
     return () => ro.disconnect()
   }, [])
 
-  // Incremental node additions
-  useEffect(() => {
-    const existingIds = new Set(gDataRef.current.nodes.map((n) => n.id))
-    const newNodes = nodes
-      .filter((n) => !existingIds.has(n.id))
-      .map((n): FGNode => ({
-        id: n.id,
-        label: n.label,
-        type: n.type,
-        color: TYPE_COLORS[n.type] ?? '#757575',
-      }))
-    if (!newNodes.length) return
-    gDataRef.current = { nodes: [...gDataRef.current.nodes, ...newNodes], links: gDataRef.current.links }
-    setGraphData({ ...gDataRef.current })
-  }, [nodes])
+  // Assign random initial positions only to nodes the library hasn't seen yet.
+  // react-force-graph-3d preserves existing node positions via ID-based merging,
+  // so we must NOT pass x/y/z for already-known nodes (it would teleport them).
+  // Nodes starting at the origin (0,0,0) don't spread correctly because the
+  // repulsive forces cancel — random initial positions fix this without needing
+  // warmupTicks to do all the work.
+  const seenNodeIds = useRef<Set<string>>(new Set())
+  const initPositions = useRef<Map<string, { x: number; y: number; z: number }>>(new Map())
 
-  // Incremental link additions
-  useEffect(() => {
-    const existingIds = new Set((gDataRef.current.links as { id: string }[]).map((l) => l.id))
-    const newLinks = edges
-      .filter((e) => !existingIds.has(e.id))
-      .map((e) => ({ id: e.id, source: e.source, target: e.target, label: e.label, confidence: e.confidence }))
-    if (!newLinks.length) return
-    gDataRef.current = { nodes: gDataRef.current.nodes, links: [...gDataRef.current.links, ...newLinks] }
-    setGraphData({ ...gDataRef.current })
-  }, [edges])
+  const graphData = useMemo(() => {
+    const SPREAD = 250
+    // Build a set of known node IDs so we can filter dangling edges.
+    // Dangling edges (where source or target node doesn't exist yet) crash the
+    // d3-force link initializer with "node not found". This can happen when
+    // WebSocket edge events arrive before the corresponding node events, or when
+    // the REST API snapshot has referential inconsistencies.
+    const nodeIds = new Set(nodes.map((n) => n.id))
+    return {
+      nodes: nodes.map((n) => {
+        const isNew = !seenNodeIds.current.has(n.id)
+        if (isNew) {
+          seenNodeIds.current.add(n.id)
+          initPositions.current.set(n.id, {
+            x: (Math.random() - 0.5) * SPREAD,
+            y: (Math.random() - 0.5) * SPREAD,
+            z: (Math.random() - 0.5) * SPREAD,
+          })
+        }
+        const base = {
+          id: n.id,
+          label: n.label,
+          type: n.type,
+          color: TYPE_COLORS[n.type] ?? '#757575',
+        }
+        // Only supply initial position for brand-new nodes
+        return isNew ? { ...base, ...initPositions.current.get(n.id)! } : base
+      }),
+      links: edges
+        .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target))
+        .map((e) => ({
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          label: e.label,
+        })),
+    }
+  }, [nodes, edges])
 
   const handleNodeClick = useCallback(
-    (node: object) => { onNodeClick((node as FGNode).id) },
+    (node: object) => { onNodeClick((node as { id: string }).id) },
     [onNodeClick],
   )
 
-  // Build a SpriteText label that sits just above the node sphere
   const makeLabelObject = useCallback((node: object) => {
-    const n = node as FGNode
-    const sprite = new SpriteText(n.label)
+    const sprite = new SpriteText((node as { label: string }).label)
     sprite.color = '#ffffff'
     sprite.textHeight = 3.5
     sprite.backgroundColor = 'rgba(0,0,0,0.55)'
     sprite.padding = 1.5
     sprite.borderRadius = 2
-    sprite.position.y = 9  // offset above sphere (nodeRelSize = 6)
+    sprite.position.y = 9
     return sprite
   }, [])
 
@@ -129,6 +137,7 @@ export default function GraphView({ nodes, edges, onNodeClick }: Props) {
           linkWidth={0.8}
           backgroundColor="#0d1117"
           onNodeClick={handleNodeClick}
+          cooldownTicks={500}
         />
       </div>
     </div>

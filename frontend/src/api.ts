@@ -26,6 +26,11 @@ export async function createBuild(
   })
 }
 
+export async function listBuilds(): Promise<BuildInfo[]> {
+  const data = await apiFetch<{ builds: BuildInfo[] }>('/api/builds')
+  return data.builds ?? []
+}
+
 export async function getBuild(buildId: string): Promise<BuildInfo> {
   return apiFetch(`/api/builds/${buildId}`)
 }
