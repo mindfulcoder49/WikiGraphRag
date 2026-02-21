@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+fly.env
 
 # Python
 __pycache__/
