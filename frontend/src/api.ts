@@ -57,6 +57,15 @@ export async function getGraph(
   return apiFetch(`/api/builds/${buildId}/graph${qs ? '?' + qs : ''}`)
 }
 
+export async function getEntities(
+  buildId: string,
+): Promise<Array<{ id: string; name: string; type: string }>> {
+  const data = await apiFetch<{ entities: Array<{ id: string; name: string; type: string }> }>(
+    `/api/builds/${buildId}/entities`,
+  )
+  return data.entities ?? []
+}
+
 export async function getEntity(buildId: string, entityId: string): Promise<EntityDetail> {
   return apiFetch(`/api/builds/${buildId}/entity/${entityId}`)
 }

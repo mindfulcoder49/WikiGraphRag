@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react'
-import type { GraphNode } from '../types'
 
 const TYPE_COLORS: Record<string, string> = {
   Person:       '#e06c75',
@@ -12,8 +11,14 @@ const TYPE_COLORS: Record<string, string> = {
   Other:        '#757575',
 }
 
+interface EntityItem {
+  id: string
+  name: string
+  type: string
+}
+
 interface Props {
-  nodes: GraphNode[]
+  nodes: EntityItem[]
   onNodeClick: (id: string) => void
 }
 
@@ -24,9 +29,10 @@ export default function NodeSidebar({ nodes, onNodeClick }: Props) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     const list = q
-      ? nodes.filter((n) => n.label.toLowerCase().includes(q))
+      ? nodes.filter((n) => n.name.toLowerCase().includes(q))
       : nodes
-    return [...list].sort((a, b) => a.label.localeCompare(b.label))
+    // allEntities comes pre-sorted from the API; only re-sort when searching
+    return q ? [...list].sort((a, b) => a.name.localeCompare(b.name)) : list
   }, [nodes, search])
 
   return (
@@ -73,7 +79,7 @@ export default function NodeSidebar({ nodes, onNodeClick }: Props) {
                   className="node-sidebar-dot"
                   style={{ background: TYPE_COLORS[n.type] ?? '#757575' }}
                 />
-                <span className="node-sidebar-label">{n.label}</span>
+                <span className="node-sidebar-label">{n.name}</span>
                 <span className="node-sidebar-type">{n.type}</span>
               </button>
             ))}

@@ -171,6 +171,32 @@ async def get_graph(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Entity list (lightweight – for sidebar/search, no edge data)
+# ──────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/builds/{build_id}/entities")
+async def list_entities(build_id: str):
+    driver = await get_driver()
+    async with driver.session() as s:
+        result = await s.run(
+            """
+            MATCH (b:Build {id: $build_id})-[:HAS_PAGE]->(p:SourcePage)
+            OPTIONAL MATCH (p)-[:HAS_CHUNK]->(ch:SourceChunk)<-[:MENTIONED_IN]-(e1:Entity)
+            OPTIONAL MATCH (p)<-[:FROM_PAGE]-(cl:Claim)<-[:HAS_CLAIM]-(e3:Entity)
+            WITH collect(DISTINCT e1) + collect(DISTINCT e3) AS all_ents
+            UNWIND all_ents AS e
+            WITH e WHERE e IS NOT NULL
+            WITH DISTINCT e
+            RETURN e.id AS id, e.name AS name, e.type AS type
+            ORDER BY e.name
+            """,
+            build_id=build_id,
+        )
+        rows = await result.data()
+    return {"entities": rows}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Entity detail
 # ──────────────────────────────────────────────────────────────────────────────
 

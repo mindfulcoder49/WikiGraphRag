@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getBuild, getBuildLogs, getGraph, getEntity, openBuildWebSocket, stopBuild } from '../api'
+import { getBuild, getBuildLogs, getGraph, getEntities, getEntity, openBuildWebSocket, stopBuild } from '../api'
 import type {
   BuildEvent,
   BuildStatus,
@@ -25,6 +25,7 @@ export default function Build() {
   const [progress, setProgress] = useState<ProgressState>({ pages_processed: 0, queue_size: 0, max_pages: 15 })
   const [nodes, setNodes] = useState<GraphNode[]>([])
   const [edges, setEdges] = useState<GraphEdge[]>([])
+  const [allEntities, setAllEntities] = useState<Array<{ id: string; name: string; type: string }>>([])
   const [selectedEntity, setSelectedEntity] = useState<EntityDetail | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [stats, setStats] = useState<{ entity_count: number; claim_count: number } | null>(null)
@@ -69,6 +70,16 @@ export default function Build() {
       })
       .catch(() => {}) // empty graph is fine
   }, [buildId])
+
+  // ── 4b. Load all entities (sidebar list – no graph limit) ─────────────────
+  const refreshAllEntities = useCallback(() => {
+    if (!buildId) return
+    getEntities(buildId).then(setAllEntities).catch(() => {})
+  }, [buildId])
+
+  useEffect(() => {
+    refreshAllEntities()
+  }, [refreshAllEntities])
 
   // ── 5. WebSocket for live updates ─────────────────────────────────────────
   useEffect(() => {
@@ -124,6 +135,13 @@ export default function Build() {
           const newOnes = event.nodes.filter((n) => !existingIds.has(n.id))
           return newOnes.length ? [...prev, ...newOnes] : prev
         })
+        setAllEntities((prev) => {
+          const existingIds = new Set(prev.map((e) => e.id))
+          const newOnes = event.nodes
+            .filter((n) => !existingIds.has(n.id))
+            .map((n) => ({ id: n.id, name: n.label, type: n.type }))
+          return newOnes.length ? [...prev, ...newOnes].sort((a, b) => a.name.localeCompare(b.name)) : prev
+        })
         break
       case 'graph.add_edges':
         setEdges((prev) => {
@@ -142,6 +160,7 @@ export default function Build() {
             setNodes(g.nodes)
             setEdges(g.edges)
           }).catch(() => {})
+          refreshAllEntities()
         }
         break
       case 'error':
@@ -208,7 +227,7 @@ export default function Build() {
             edges={edges}
             onNodeClick={handleNodeClick}
           />
-          <NodeSidebar nodes={nodes} onNodeClick={handleNodeClick} />
+          <NodeSidebar nodes={allEntities} onNodeClick={handleNodeClick} />
         </div>
       </div>
 
