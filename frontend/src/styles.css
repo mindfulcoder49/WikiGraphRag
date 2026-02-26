@@ -869,3 +869,87 @@ input[type="text"], input[type="range"] {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text2); }
+
+/* ── Mobile tab bar (hidden on desktop) ────────────────────────────── */
+.mobile-tabs { display: none; }
+
+/* ── Mobile / Responsive ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+
+  /* ── Viewport fix: accounts for mobile browser chrome ── */
+  .build-page { height: 100dvh; }
+
+  /* ── Home page ── */
+  .home-page { padding: 20px 16px; }
+  .home-layout { flex-direction: column; gap: 20px; }
+  .home-card { padding: 24px 20px; max-width: 100%; }
+  .home-logo { font-size: 36px; }
+  .home-card h1 { font-size: 22px; }
+  .build-btn { width: 100%; padding: 14px 24px; }
+  .chip { padding: 8px 14px; min-height: 36px; }
+  .slider-row label { min-width: 110px; }
+
+  /* ── Build header ── */
+  .build-header { padding: 8px 12px; gap: 8px; flex-wrap: wrap; }
+  .build-topic {
+    font-size: 14px;
+    max-width: 45vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .build-stats { display: none; }
+
+  /* ── Mobile tab bar ── */
+  .mobile-tabs {
+    display: flex;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .mobile-tab {
+    flex: 1;
+    padding: 10px 4px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text2);
+    background: transparent;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .mobile-tab--active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Build body: tab-based show/hide ── */
+  .build-left { width: 100%; border-right: none; }
+
+  /* Log tab: show log only */
+  .build-page--tab-log .build-right { display: none; }
+  .build-page--tab-log .chat-section { display: none; }
+
+  /* Graph tab: show graph only */
+  .build-page--tab-graph .build-left { display: none; }
+  .build-page--tab-graph .chat-section { display: none; }
+
+  /* Chat tab: show chat full-screen */
+  .build-page--tab-chat .build-body { display: none; }
+  .build-page--tab-chat .chat-section { flex: 1; max-height: none; }
+
+  /* ── Chat ── */
+  .chat-msg { max-width: 95%; }
+  .chat-input { font-size: 16px; } /* prevent iOS auto-zoom */
+
+  /* ── Node drawer: full width on mobile ── */
+  .drawer { width: 100vw; max-width: 100vw; padding: 16px; }
+
+  /* ── Citation modal: full width ── */
+  .modal-overlay { padding: 12px; align-items: flex-end; }
+  .modal { max-width: 100%; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+  /* ── Node sidebar panel: cap at viewport width ── */
+  .node-sidebar-panel { width: min(240px, calc(100vw - 24px)); }
+
+  /* ── Progress info: allow wrapping ── */
+  .progress-info { flex-wrap: wrap; gap: 8px; }
+}

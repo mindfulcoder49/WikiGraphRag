@@ -29,6 +29,7 @@ export default function Build() {
   const [selectedEntity, setSelectedEntity] = useState<EntityDetail | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [stats, setStats] = useState<{ entity_count: number; claim_count: number } | null>(null)
+  const [mobileTab, setMobileTab] = useState<'log' | 'graph' | 'chat'>('graph')
 
   const wsRef = useRef<WebSocket | null>(null)
 
@@ -192,7 +193,7 @@ export default function Build() {
   }
 
   return (
-    <div className="build-page">
+    <div className={`build-page build-page--tab-${mobileTab}`}>
       {/* Header */}
       <div className="build-header">
         <Link to="/" className="back-link">← Home</Link>
@@ -212,6 +213,24 @@ export default function Build() {
 
       {/* Progress */}
       <ProgressBar progress={progress} />
+
+      {/* Mobile tab bar (hidden on desktop via CSS) */}
+      <div className="mobile-tabs">
+        <button
+          className={`mobile-tab${mobileTab === 'log' ? ' mobile-tab--active' : ''}`}
+          onClick={() => setMobileTab('log')}
+        >Log</button>
+        <button
+          className={`mobile-tab${mobileTab === 'graph' ? ' mobile-tab--active' : ''}`}
+          onClick={() => setMobileTab('graph')}
+        >Graph</button>
+        {(status === 'DONE' || status === 'STOPPED') && (
+          <button
+            className={`mobile-tab${mobileTab === 'chat' ? ' mobile-tab--active' : ''}`}
+            onClick={() => setMobileTab('chat')}
+          >Ask</button>
+        )}
+      </div>
 
       {/* Main layout */}
       <div className="build-body">
